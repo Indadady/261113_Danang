@@ -26,7 +26,10 @@
     <script>tailwind.config={theme:{extend:{colors:{tm:'#004098', 'tm-dark':'#002d6b'}}}}</script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.20/leaflet-maplibre-gl.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Nanum+Myeongjo:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -41,13 +44,55 @@
         }
         @media(max-width:768px) { .hero-bg { background-attachment: scroll; } }
 
-        #map-wrap { position: relative; }
-        #map { height: 360px; width: 100%; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,.1); z-index: 10; }
-        @media(min-width:1024px) { #map { height: 500px; } }
-        #map-leg { position: absolute; top: 12px; left: 12px; z-index: 500; display: none; background: rgba(255,255,255,.94); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 800; color: var(--tm); box-shadow: 0 4px 12px rgba(15,23,42,.12); pointer-events: none; max-width: calc(100% - 24px); }
-        .map-vehicle { font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
-        .traveler-icon { background: none !important; border: none !important; }
-        .map-marker-bubble { background: #fff; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.3); border: 2px solid #fff; display: flex; align-items: center; justify-content: center; opacity: 0; }
+        #map-wrap { position: relative; z-index: 0; }
+        #map { height: 420px; width: 100%; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,.1); z-index: 10; }
+        @media(min-width:1024px) { #map { height: 540px; } }
+        .leaflet-maplibre-gl { z-index: 0 !important; }
+        .leaflet-control-zoom { display: none !important; }
+        #map-distance {
+            position: absolute; top: 12px; right: 12px; z-index: 450;
+            min-width: 8rem; max-width: min(54vw, 14rem); text-align: right;
+            background: rgba(255,255,255,.94); backdrop-filter: blur(8px);
+            border-radius: 14px; padding: 10px 12px;
+            box-shadow: 0 8px 24px rgba(15,23,42,.14); border: 1px solid rgba(148,163,184,.35);
+            pointer-events: none;
+        }
+        @media (max-width: 380px) {
+            #map-distance { min-width: 7rem; padding: 8px 10px; }
+        }
+        #map-distance-time { white-space: pre-line; }
+        .map-zoom-btns {
+            position: absolute; left: 12px; bottom: 14px; z-index: 450;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .map-zoom-btns button {
+            width: 40px; height: 40px; border-radius: 12px; border: 1px solid #cbd5e1;
+            background: rgba(255,255,255,.96); color: #0f172a; font-size: 18px; font-weight: 800;
+            box-shadow: 0 4px 14px rgba(15,23,42,.12);
+        }
+        .map-zoom-btns button:active { transform: scale(.96); }
+        .custom-icon { background: transparent; border: none; }
+        #map, #map .leaflet-marker-icon { -webkit-tap-highlight-color: transparent; }
+        #map .leaflet-marker-icon:focus, #map .leaflet-marker-icon:focus-visible { outline: none !important; }
+        .map-pin-wrap { display: flex; flex-direction: column; align-items: center; }
+        .map-pin-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; color: #fff;
+            border: 2px solid rgba(255,255,255,0.95);
+            box-shadow: 0 8px 16px rgba(15,23,42,0.18);
+        }
+        .map-pin-label {
+            margin-top: 3px; background: rgba(255,255,255,0.96); color: #0f172a;
+            font-size: 10px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.2;
+            padding: 2px 6px; border-radius: 6px; white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(15,23,42,0.12);
+        }
+        .map-bus {
+            font-size: 22px; line-height: 1;
+            filter: drop-shadow(0 4px 8px rgba(15,23,42,0.35));
+            transform-origin: center center; display: inline-block;
+        }
         body.event-day section { scroll-margin-top: 112px; }
         @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .leaflet-tooltip { font-family: 'Noto Sans KR', sans-serif !important; font-weight: 700 !important; color: #1e293b !important; border-radius: 8px !important; border: none !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; padding: 4px 10px !important; }
@@ -117,17 +162,17 @@
 
             .print-credit { margin-top: 10px; padding-top: 8px; border-top: 1px solid #cbd5e1; text-align: center; }
             .print-credit-text { font-size: 9px; color: #475569; font-weight: 500; }
-            .print-checklist { border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px 14px; background: #fff !important; margin-bottom: 10px; }
-            .print-checklist h2 { font-size: 13px; font-weight: 800; color: var(--tm); margin: 0 0 8px 0; }
-            .print-checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 10.5px; font-weight: 600; }
-            .print-check-item { display: flex; align-items: flex-start; gap: 7px; line-height: 1.35; }
-            .print-check-box { width: 12px; height: 12px; border: 1.5px solid var(--tm); border-radius: 2px; flex-shrink: 0; margin-top: 1.5px; }
-            .print-note-list { font-size: 10.5px; color: #475569; line-height: 1.5; margin: 0 0 10px 0; padding-left: 16px; }
-            .print-qr-box { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1.5px solid #1e293b; border-radius: 6px; background: #f8fafc !important; margin-bottom: 10px; }
-            .print-qr-box img { width: 110px; height: 110px; border: 1px solid #1e293b; background: #fff; flex-shrink: 0; }
-            .print-qr-box .qr-copy { font-size: 11.5px; line-height: 1.45; font-weight: 600; }
-            .print-qr-box .qr-copy strong { color: var(--tm); font-size: 13px; display: block; margin-bottom: 4px; }
-            .print-qr-box .qr-url { color: #475569; font-size: 10px; word-break: break-all; font-weight: 500; }
+            .print-checklist { border: 1.5px solid #1e293b; border-radius: 6px; padding: 9px 12px; background: #fff !important; margin-bottom: 8px; }
+            .print-checklist h2 { font-size: 12px; font-weight: 800; color: var(--tm); margin: 0 0 6px 0; }
+            .print-checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 9.8px; font-weight: 600; }
+            .print-check-item { display: flex; align-items: flex-start; gap: 6px; line-height: 1.3; }
+            .print-check-box { width: 11px; height: 11px; border: 1.5px solid var(--tm); border-radius: 2px; flex-shrink: 0; margin-top: 1.5px; }
+            .print-note-list { font-size: 9.8px; color: #475569; line-height: 1.42; margin: 0 0 8px 0; padding-left: 16px; }
+            .print-qr-box { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1.5px solid #1e293b; border-radius: 6px; background: #f8fafc !important; margin-bottom: 8px; }
+            .print-qr-box img { width: 92px; height: 92px; border: 1px solid #1e293b; background: #fff; flex-shrink: 0; }
+            .print-qr-box .qr-copy { font-size: 11px; line-height: 1.4; font-weight: 600; }
+            .print-qr-box .qr-copy strong { color: var(--tm); font-size: 12.5px; display: block; margin-bottom: 3px; }
+            .print-qr-box .qr-url { color: #475569; font-size: 9.5px; word-break: break-all; font-weight: 500; }
         }
     </style>
 </head>
@@ -144,6 +189,7 @@
                     <a href="#home" class="px-3 py-2 font-bold text-slate-600 hover:text-tm rounded-lg">홈</a>
                     <a href="#highlights" class="px-3 py-2 font-bold text-tm rounded-lg">핵심포인트</a>
                     <a href="#flight" class="px-3 py-2 font-medium text-slate-600 hover:text-tm rounded-lg">항공</a>
+                    <a href="#seat-checkin" class="px-3 py-2 font-bold text-sky-700 hover:bg-sky-50 rounded-lg">좌석·체크인</a>
                     <a href="#map-section" class="px-3 py-2 font-medium text-slate-600 hover:text-tm rounded-lg">동선</a>
                     <a href="#schedule" class="px-3 py-2 font-bold text-tm rounded-lg">상세일정</a>
                     <a href="#entry" class="px-3 py-2 font-medium text-slate-600 hover:text-tm rounded-lg">입국신고</a>
@@ -173,7 +219,7 @@
                 <div class="print-doc-no">문서번호: TM-261113-DANANG · 1/2</div>
             </div>
             <div class="print-title">목우회 다낭/호이안 3박 4일 일정표</div>
-            <p class="print-subtitle">※ 본 일정표는 안내 초안이며, 항공·현지 기상 및 교통 상황에 따라 유연하게 진행됩니다.</p>
+            <p class="print-subtitle">※ 본 일정표는 항공·현지 기상 및 교통 상황에 따라 유연하게 진행됩니다.</p>
 
             <div class="print-overview">
                 <div><span class="label">단체</span> 목우회</div>
@@ -318,12 +364,20 @@
                         <div class="print-check-item"><span class="print-check-box"></span>상비약·복용약·멀미약·지사제·방수밴드</div>
                         <div class="print-check-item"><span class="print-check-box"></span>세면도구 · 개인 위생용품 · 생리용품</div>
                         <div class="print-check-item"><span class="print-check-box"></span>멀티 어댑터 (베트남 220V · A/C형)</div>
-                        <div class="print-check-item"><span class="print-check-box"></span>보조배터리(기내 휴대) · 충전기 · 케이블</div>
+                        <div class="print-check-item"><span class="print-check-box"></span>보조배터리(지퍼백·절연테이프 / 기내 직접 휴대)</div>
                         <div class="print-check-item"><span class="print-check-box"></span>수영복·슬리퍼 (호텔 수영장·미케해변)</div>
                         <div class="print-check-item"><span class="print-check-box"></span>해외 로밍/eSIM · 카카오톡 비상연락 확인</div>
                         <div class="print-check-item"><span class="print-check-box"></span>여행자보험 증권(모바일) · 여정표 캡처</div>
-                        <div class="print-check-item"><span class="print-check-box"></span>인천 T2 · 출발 최소 2시간 전 도착</div>
+                        <div class="print-check-item"><span class="print-check-box"></span>인천 T2 · 출발 최소 2시간 30분 전 도착(개별 수속)</div>
                     </div>
+                </div>
+                <div class="print-checklist">
+                    <h2>✈ 대한항공(KE) 온라인 체크인 · 개별 수속 &amp; 보조배터리 기내반입 안내</h2>
+                    <ul class="print-note-list" style="margin:0;">
+                        <li><strong>인천공항 개별 체크인 &amp; 다낭 현지 가이드 미팅</strong> : 한국 출발 시 인솔자가 동행하지 않으므로 인천국제공항 <strong>제2여객터미널(T2)</strong>에서 개별(또는 일행 합산) 체크인 및 수하물 위탁(1인 1개·23kg) 후 출국하시며, <strong>다낭공항 도착 후 현지 가이드와 미팅</strong>하여 행사가 진행됩니다.</li>
+                        <li><strong>온라인 체크인 &amp; 무료 좌석배정 (출발 48시간 ~ 1시간 전)</strong> : 가는 편(KE457) 11/11(수) 11:10 오픈, 오는 편(KE458) 11/14(토) 15:45 오픈 · 대한항공 홈페이지·앱에서 잔여 일반석 무료 선택 가능하며, 미진행 시 출발 당일 공항 카운터에서 여권 제시로 좌석 배정을 받으실 수 있습니다.</li>
+                        <li><strong>[필수] 보조배터리·전자담배 기내반입 기준</strong> : ① 위탁수하물 금지 및 <strong>기내 사용·충전 금지</strong> ② <strong>기내 선반 보관 불가</strong> (직접 휴대 또는 앞좌석 주머니 보관) ③ <strong>단락 방지 필수</strong> (절연테이프·투명비닐백 보관, 전자담배 전원 OFF) ④ 1인당 <strong>2개까지</strong> 허용, 160Wh 초과 불가 (100~160Wh는 카운터 승인 필수) · 파손/리콜 배터리 반입 금지</li>
+                    </ul>
                 </div>
                 <ul class="print-note-list">
                     <li>한국인은 45일 무비자(면제)이며, <strong>PAI는 별도 필수</strong>입니다. 다낭 도착 72시간 전부터 <strong>prearrival.immigration.gov.vn</strong>에서 무료 작성하세요. 비자 종류는 <strong>단방향면제</strong>, 비자번호는 <strong>빈칸</strong>.</li>
@@ -488,6 +542,160 @@
             </div>
         </section>
 
+        <section id="seat-checkin" class="py-16 bg-sky-50/70 border-t border-sky-100">
+            <div class="container mx-auto px-4 max-w-5xl">
+                <div class="text-center mb-10">
+                    <span class="inline-block bg-tm text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm mb-3">KOREAN AIR · ONLINE CHECK-IN &amp; BAGGAGE</span>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800">대한항공 온라인 체크인 · 좌석배정 &amp; 개별 수속 안내</h2>
+                    <p class="text-slate-600 mt-2 text-sm md:text-base">본 행사는 인천공항에서 인솔자 동행 없이 <strong>개별 체크인</strong>으로 출국한 뒤, <strong>다낭공항 도착 후 현지 가이드와 미팅</strong>하여 진행됩니다.</p>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-lg border border-sky-100 overflow-hidden mb-8">
+                    <div class="grid md:grid-cols-2">
+                        <div class="p-8 md:p-10 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-6">💺 온라인 체크인 좌석배정 &amp; 공항 개별 수속</h3>
+                                <ol class="space-y-5 text-sm text-slate-600 mb-8">
+                                    <li class="flex gap-4 items-start">
+                                        <span class="bg-sky-100 text-tm w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
+                                        <div>
+                                            <p class="font-bold text-slate-800 mb-1.5 leading-snug">
+                                                온라인 체크인 &amp; 무료 좌석배정<br>
+                                                <span class="inline-block text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 mt-1">출발 48시간 ~ 1시간 전</span>
+                                            </p>
+                                            <p class="leading-relaxed">항공편 출발 <strong>48시간 전부터 1시간 전까지</strong> 대한항공 홈페이지·앱에서 온라인 체크인이 열리며, 남아 있는 일반석 좌석을 <strong>무료로 선택</strong>하고 모바일 탑승권을 발급받을 수 있습니다.</p>
+                                            <div class="mt-2.5 bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
+                                                <div>
+                                                    <p class="font-bold text-tm">가는 편 (KE457 · 11/13 11:10 인천 T2 출발 → 다낭)</p>
+                                                    <p class="text-slate-600 pl-2 mt-0.5">• 11/11(수) 11:10 오픈 ~ 11/13(금) 10:10 마감</p>
+                                                </div>
+                                                <div class="pt-2 border-t border-slate-200">
+                                                    <p class="font-bold text-tm">오는 편 (KE458 · 11/16 15:45 다낭 T2 출발 → 인천)</p>
+                                                    <p class="text-slate-600 pl-2 mt-0.5">• 11/14(토) 15:45 오픈 ~ 11/16(월) 14:45 마감</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li class="flex gap-4 items-start">
+                                        <span class="bg-sky-100 text-tm w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
+                                        <div>
+                                            <p class="font-bold text-slate-800 mb-1.5 leading-snug">
+                                                인천공항 제2터미널(T2) 카운터 현장 좌석배정 · 개별 수속<br>
+                                                <span class="inline-block text-xs font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200 mt-1">출발 당일 · 최소 2시간 30분 전 도착 권장</span>
+                                            </p>
+                                            <p class="leading-relaxed">온라인 체크인이 번거로우시거나 어려우신 경우 미리 하지 않으셔도 괜찮습니다. 출발 당일 <strong>인천국제공항 제2여객터미널(T2) 3층 대한항공 카운터</strong>에서 일행분들과 여권을 함께 제시하시면, 직원이 <strong>인접한 좌석으로 무료 배정</strong>하고 수하물(1인 23kg) 위탁과 종이 탑승권 발급을 한 번에 도와드립니다.</p>
+                                        </div>
+                                    </li>
+                                    <li class="flex gap-4 items-start">
+                                        <span class="bg-sky-100 text-tm w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
+                                        <div>
+                                            <p class="font-bold text-slate-800 mb-1.5 leading-snug">
+                                                다낭공항 도착 후 현지 가이드 미팅 &amp; 귀국 수속 지원<br>
+                                                <span class="inline-block text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 mt-1">다낭 제2터미널(T2) 출구 미팅</span>
+                                            </p>
+                                            <p class="leading-relaxed">다낭국제공항 제2터미널 도착 후 입국심사(여권·PAI QR 제시)와 짐 찾기를 마치고 나오시면 <strong>출구에서 현지 가이드가 미팅</strong>하여 전용차량으로 모십니다. 마지막 날 귀국 시에는 다낭공항까지 가이드가 동행하여 출국 카운터 수속을 안내해 드립니다.</p>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                            <a href="https://www.koreanair.com/kr/ko/airport/check-in/online-check-in" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 bg-tm hover:bg-tm-dark text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition active:scale-95 text-sm">
+                                <i class="fa-solid fa-plane-circle-check"></i> 대한항공 온라인 체크인 바로가기
+                            </a>
+                        </div>
+                        <div class="bg-sky-100/50 p-8 md:p-10 flex flex-col justify-center border-t md:border-t-0 md:border-l border-sky-100">
+                            <div class="bg-white rounded-2xl p-5 shadow-sm mb-4 border border-sky-100">
+                                <p class="text-xs font-bold text-tm mb-2"><i class="fa-solid fa-ticket mr-1"></i> 온라인 체크인 이용 방법 (희망 시)</p>
+                                <ul class="text-xs text-slate-600 space-y-2 leading-relaxed">
+                                    <li>• 대한항공 홈페이지(koreanair.com) 또는 앱 → <strong>[체크인] → [사전 체크인(온라인 체크인)]</strong> 메뉴 접속</li>
+                                    <li>• 회원 로그인 없이 <strong>[예약번호 또는 항공권번호로 조회]</strong>에서 E-티켓의 예약번호(6자리) 또는 항공권번호(180으로 시작하는 13자리)·출발일·영문 성명을 입력해 좌석을 지정합니다.</li>
+                                    <li>• 일행분들과 나란히 앉으시려면 공항에 여유 있게 도착하셔서 <strong>대한항공 유인 카운터에 여권을 함께 제출</strong>하시는 방법이 가장 간편합니다.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white rounded-2xl p-5 shadow-sm mb-4 border border-sky-100">
+                                <p class="text-xs font-bold text-tm mb-2"><i class="fa-solid fa-suitcase-rolling mr-1"></i> 위탁수하물(23kg) &amp; 인천 제2터미널(T2) 수속 유의사항</p>
+                                <ul class="text-xs text-slate-600 space-y-2 leading-relaxed">
+                                    <li>• <strong>인천공항 제2여객터미널(T2) 출발</strong> : 대한항공은 <strong>제2터미널(T2)</strong> 전용입니다. 공항 이동 시 터미널을 꼭 확인해 주세요.</li>
+                                    <li>• <strong>위탁수하물 (1인 1개 · 23kg 이하 무료)</strong> : 온라인 체크인을 완료하셨더라도 부치실 짐이 있으면 공항 카운터 또는 셀프 백드랍에서 <strong>출발 1시간 전까지</strong> 짐을 부치셔야 합니다.</li>
+                                    <li>• <strong>탑승 마감</strong> : 수하물 위탁은 출발 <strong>60분 전</strong>, 탑승구(게이트) 입장은 출발 <strong>30분 전</strong>에 마감됩니다.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-900 leading-relaxed">
+                                <i class="fa-solid fa-user-check mr-1 text-tm"></i>
+                                <strong>목우회 12명 단독팀 안내 :</strong> 본 행사는 한국 출발 시 인솔자가 동행하지 않는 <strong>다낭 현지 가이드 미팅 행사</strong>입니다. 출발 당일 인천공항 제2터미널에서 일행분들과 개별 탑승수속 후 출국하시고, 다낭 도착 후 가이드와 만나 편안하게 일정을 시작하시면 됩니다. (공항 수속 중 문의: 투어메이커 <strong>010-9443-7881</strong>)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid sm:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-2xl border border-sky-100 p-5 text-center shadow-sm">
+                        <div class="text-2xl mb-2">📱</div>
+                        <h4 class="font-bold text-slate-800 text-sm mb-1">출발 48시간 ~ 1시간 전</h4>
+                        <p class="text-xs text-slate-500">온라인 체크인 오픈 및 잔여 일반석 무료 배정</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-sky-100 p-5 text-center shadow-sm">
+                        <div class="text-2xl mb-2">🛫</div>
+                        <h4 class="font-bold text-slate-800 text-sm mb-1">인천공항 제2터미널(T2) 개별 수속</h4>
+                        <p class="text-xs text-slate-500">인솔자 미동행 · 카운터에서 여권 제시 후 좌석 배정 및 수하물(23kg) 위탁</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-sky-100 p-5 text-center shadow-sm">
+                        <div class="text-2xl mb-2">🤝</div>
+                        <h4 class="font-bold text-slate-800 text-sm mb-1">다낭공항 현지 가이드 미팅</h4>
+                        <p class="text-xs text-slate-500">다낭 제2터미널 도착 후 가이드 미팅 · 귀국 시 공항 수속 안내</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-rose-50/90 rounded-3xl border-2 border-rose-200 p-6 md:p-8 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-rose-200/80">
+                        <div class="flex items-center gap-2.5">
+                            <span class="bg-rose-600 text-white w-8 h-8 rounded-xl flex items-center justify-center text-sm shadow-sm shrink-0">
+                                <i class="fa-solid fa-battery-exclamation"></i>
+                            </span>
+                            <div>
+                                <h3 class="font-extrabold text-slate-800 text-base md:text-lg">[대한항공] 보조배터리 및 전자담배 기내반입 기준 안내</h3>
+                                <p class="text-xs text-rose-700 font-semibold">항공 안전 강화 규정 — 출국 전 전원 필수 확인 및 단락 방지 준비</p>
+                            </div>
+                        </div>
+                        <span class="bg-white text-rose-700 border border-rose-300 text-xs font-extrabold px-3 py-1 rounded-full">위탁 수하물 절대 금지</span>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-3 text-xs md:text-sm text-slate-700">
+                        <div class="bg-white rounded-2xl p-4 border border-rose-100 flex items-start gap-3">
+                            <i class="fa-solid fa-ban text-rose-600 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-slate-800">기내 사용 및 충전 금지 (위탁 수하물 금지)</p>
+                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">부치는 큰 가방(위탁 수하물)에 넣을 수 없으며, <strong>비행기 안에서도 보조배터리 사용 및 충전이 모두 금지</strong>됩니다.</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-rose-100 flex items-start gap-3">
+                            <i class="fa-solid fa-hand-holding-hand text-rose-600 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-slate-800">기내 선반(머리 위 짐칸) 보관 불가</p>
+                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">기내 선반에 올리는 가방에 넣지 마시고, 반드시 <strong>본인이 직접 소지하거나 좌석 앞주머니에 보관</strong>해 주세요.</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-rose-100 flex items-start gap-3">
+                            <i class="fa-solid fa-shield-halved text-rose-600 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-slate-800">단락 방지 조치 필수 (투명 비닐백·절연테이프)</p>
+                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">단자에 <strong>절연테이프</strong>를 붙이거나 <strong>투명 비닐백(지퍼백)에 1개씩 넣어 보관</strong>하셔야 하며, 전자담배는 <strong>전원 OFF</strong> 상태를 유지해야 합니다.</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-rose-100 flex items-start gap-3">
+                            <i class="fa-solid fa-bolt text-rose-600 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-slate-800">용량 · 개수 제한 (1인당 최대 2개, 160Wh 초과 불가)</p>
+                                <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">1인당 <strong>2개까지</strong> 허용되며, <strong>160Wh 초과 시 운송 불가</strong>합니다. (※ <strong>100Wh 초과 ~ 160Wh 이하</strong>는 항공사 승인을 위해 체크인 카운터 방문 필요 / <strong>파손·리콜 대상 보조배터리 반입 금지</strong>)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-center text-xs text-slate-500 mt-5">
+                    ※ 상기 온라인 체크인·수속 기준 및 기내 반입 규정은 대한항공 정책과 현지 공항 사정에 의해 변동될 수 있습니다.
+                </p>
+            </div>
+        </section>
+
         <section id="entry" class="py-16 bg-white border-t border-slate-200">
             <div class="container mx-auto px-4 max-w-5xl">
                 <div class="text-center mb-10">
@@ -547,23 +755,33 @@
         </section>
 
         <section id="map-section" class="py-16 bg-white border-t border-slate-200">
-            <div class="container mx-auto px-4 max-w-7xl">
+            <div class="container mx-auto px-4 max-w-6xl">
                 <div class="text-center mb-8">
-                    <h2 class="text-3xl font-bold text-slate-800">한눈에 보는 동선 지도</h2>
+                    <span class="text-tm font-black tracking-widest text-xs uppercase">ANIMATED ROUTING MAP</span>
+                    <h2 class="text-3xl font-bold text-slate-800 mt-2">한눈에 보는 동선 지도</h2>
                     <p class="text-sm text-slate-500 mt-2">실제 도로를 따라 이동 순서가 천천히 그려집니다. 일자 버튼을 누르면 해당 구간만 볼 수 있습니다.</p>
                 </div>
                 <div class="flex flex-wrap gap-2 justify-center mb-6">
-                    <button onclick="changeMapAndTab('all')" class="map-tab-btn active px-5 py-2 rounded-full text-sm font-bold border bg-tm text-white border-tm shadow-sm transition-colors">전체</button>
-                    <button onclick="changeMapAndTab('day1')" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">1일차 도착 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#0ea5e9] ml-1"></span></button>
-                    <button onclick="changeMapAndTab('day2')" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">2일차 바나힐 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#10b981] ml-1"></span></button>
-                    <button onclick="changeMapAndTab('day3')" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">3일차 호이안 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#f59e0b] ml-1"></span></button>
-                    <button onclick="changeMapAndTab('day4')" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">4일차 귀국 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#8b5cf6] ml-1"></span></button>
+                    <button type="button" onclick="changeMapAndTab('all')" id="btn-map-all" class="map-tab-btn active px-5 py-2 rounded-full text-sm font-bold border bg-tm text-white border-tm shadow-sm transition-colors">전체 여정</button>
+                    <button type="button" onclick="changeMapAndTab('day1')" id="btn-map-day1" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">1일차 도착 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#0ea5e9] ml-1"></span></button>
+                    <button type="button" onclick="changeMapAndTab('day2')" id="btn-map-day2" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">2일차 바나힐 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#10b981] ml-1"></span></button>
+                    <button type="button" onclick="changeMapAndTab('day3')" id="btn-map-day3" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">3일차 호이안 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#f59e0b] ml-1"></span></button>
+                    <button type="button" onclick="changeMapAndTab('day4')" id="btn-map-day4" class="map-tab-btn px-5 py-2 rounded-full text-sm font-bold border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors">4일차 귀국 <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#8b5cf6] ml-1"></span></button>
                 </div>
-                <div id="map-wrap">
-                    <div id="map-leg"></div>
+                <div id="map-wrap" class="max-w-5xl mx-auto border border-slate-200 rounded-2xl p-1 shadow-lg bg-white relative z-0">
                     <div id="map"></div>
+                    <div id="map-distance" class="hidden">
+                        <p class="text-[10px] font-bold text-slate-400 tracking-wide">대략 이동</p>
+                        <p id="map-distance-leg" class="font-bold text-xs text-slate-800 leading-snug mt-0.5"></p>
+                        <p id="map-distance-time" class="font-black text-sm text-tm mt-0.5 leading-snug"></p>
+                        <p id="map-distance-km" class="text-[10px] font-bold text-slate-500 mt-0.5"></p>
+                    </div>
+                    <div class="map-zoom-btns">
+                        <button type="button" onclick="mapZoom(1)" aria-label="줌인">+</button>
+                        <button type="button" onclick="mapZoom(-1)" aria-label="줌아웃">−</button>
+                    </div>
                 </div>
-                <p id="map-hint" class="text-center text-xs text-tm font-bold mt-4">✈️ 전체 보기: 대한항공 직항 노선 (KE457 · KE458)</p>
+                <p id="map-hint" class="text-center text-xs text-tm font-bold mt-4">전체 여정 — 인천 ↔ 다낭 직항(점선) + 다낭·바나힐·호이안 전용차량 실제 도로 동선</p>
                 <p class="text-center text-xs text-slate-400 mt-1">※ 상기 지도는 주요 랜드마크 기준이며 실제 세부 이동과 다를 수 있습니다.</p>
             </div>
         </section>
@@ -571,10 +789,16 @@
         <section id="schedule" class="py-16 bg-slate-50 border-t border-slate-200">
             <div class="container mx-auto px-4 max-w-6xl">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-                    <h2 class="text-3xl font-bold text-slate-800">일자별 상세 일정표</h2>
-                    <button onclick="window.print()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-tm hover:bg-tm-dark text-white text-sm font-bold rounded-xl shadow-sm transition-colors shrink-0 self-start sm:self-auto" title="일정표 인쇄하기">
-                        <i class="fa-solid fa-print"></i> 일정표 인쇄하기
-                    </button>
+                    <div class="text-center sm:text-left">
+                        <h2 class="text-3xl font-bold text-slate-800">일자별 상세 일정표</h2>
+                        <p class="text-slate-500 text-sm mt-1">탭을 눌러 일자별 상세 내용을 확인하세요. (※ 항공 및 현지 사정에 의해 변동될 수 있습니다)</p>
+                    </div>
+                    <div class="text-center sm:text-right shrink-0 no-print">
+                        <button type="button" onclick="handlePrint()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-tm hover:bg-tm-dark text-white text-sm font-bold rounded-xl shadow-sm transition-colors" title="일정표 인쇄하기">
+                            <i class="fa-solid fa-print"></i> 일정표 인쇄하기
+                        </button>
+                        <p class="mt-2 text-xs text-slate-500 leading-relaxed max-w-[16rem] mx-auto sm:ml-auto sm:mr-0">모바일(카카오톡 등)에서는<br>인쇄가 어려울 수 있어요.<br>다른 브라우저나 PC에서 열어 주세요.</p>
+                    </div>
                 </div>
 
                 <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -922,7 +1146,7 @@
                     <button onclick="showPhrase('💳','계산해 주세요','Tính tiền','띵 띠엔')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">💳</span><span class="text-sm font-bold text-slate-700">계산요청</span></button>
                     <button onclick="showPhrase('🌶️','덜 맵게 해주세요','Ít cay','잇 까이')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">🌶️</span><span class="text-sm font-bold text-slate-700">덜 맵게</span></button>
                     <button onclick="showPhrase('🧊','시원한 물 주세요','Cho tôi nước lạnh','쩌 또이 넉 라인')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">🧊</span><span class="text-sm font-bold text-slate-700">얼음물</span></button>
-                    <button onclick="showPhrase('📉','너무 비싸요','Đắt quá',' Closure 콰')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">📉</span><span class="text-sm font-bold text-slate-700">비싸요</span></button>
+                    <button onclick="showPhrase('📉','너무 비싸요','Đắt quá','닷 콰')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">📉</span><span class="text-sm font-bold text-slate-700">비싸요</span></button>
                     <button onclick="showPhrase('👍','맛있어요','Ngon quá','넌 콰')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">👍</span><span class="text-sm font-bold text-slate-700">맛있음</span></button>
                     <button onclick="showPhrase('📸','사진 찍어주세요','Chụp ảnh giúp tôi','춥 아잉 줍 또이')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors active:scale-95"><span class="text-3xl">📸</span><span class="text-sm font-bold text-slate-700">사진촬영</span></button>
                     <button onclick="showPhrase('🚨','도와주세요! 병원이 필요해요','Cứu tôi! Cần bệnh viện','끄우 또이! 껀 벤 비엔')" class="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm flex flex-col items-center gap-2 hover:bg-rose-100 transition-colors active:scale-95"><span class="text-3xl">🚨</span><span class="text-sm font-bold text-rose-700">긴급상황</span></button>
@@ -1098,6 +1322,18 @@
         }
         updateDday();
 
+        function isInAppBrowser() {
+            const ua = (navigator.userAgent || '').toLowerCase();
+            return /kakaotalk|naver|line\/|fbav|instagram|daumapps|everytimeapp|band\//.test(ua);
+        }
+        function handlePrint() {
+            if (isInAppBrowser()) {
+                alert('이 앱에서는 인쇄가 어려워요.\n다른 브라우저나 PC에서 열어 주세요.');
+                return;
+            }
+            window.print();
+        }
+
         function goToTodaySchedule() {
             const dayKey = getTodayDayKey();
             if (dayKey) changeMapAndTab(dayKey);
@@ -1117,264 +1353,467 @@
             document.body.classList.toggle('event-day', isEventDay);
         }
 
-        let map, layerGroup, vehicleMarker = null, vehicleMode = null, mapDrawSeq = 0;
+        let mapInited = false;
+        let currentMap = null;
+        let mapLayers = [];
+        let mapDrawSeq = 0;
+        let activeBus = null;
         const osrmCache = {};
         const spots = {
-            icn: { c:[37.4602, 126.4407], t:'인천공항', col:'#64748b', i:'<i class="fa-solid fa-plane-departure"></i>' },
-            dad: { c:[16.0439, 108.1990], t:'다낭 공항', col:'#0ea5e9', i:'<i class="fa-solid fa-plane-arrival"></i>' },
-            museum: { c:[16.0490, 108.2208], t:'다낭박물관', col:'#0ea5e9', i:'<i class="fa-solid fa-landmark"></i>' },
-            cathedral: { c:[16.0678, 108.2208], t:'다낭성당', col:'#0ea5e9', i:'<i class="fa-solid fa-church"></i>' },
-            mykhe: { c:[16.0600, 108.2470], t:'미케해변', col:'#0ea5e9', i:'<i class="fa-solid fa-umbrella-beach"></i>' },
-            hotel: { c:[16.0610, 108.2410], t:'호텔(무엉탄/동도)', col:'#004098', i:'<i class="fa-solid fa-hotel"></i>' },
-            banahills: { c:[15.9977, 107.9881], t:'바나힐·황금손다리', col:'#10b981', i:'<i class="fa-solid fa-bridge"></i>' },
-            linhung: { c:[16.1003, 108.2775], t:'린응사', col:'#10b981', i:'<i class="fa-solid fa-vihara"></i>' },
-            tower: { c:[16.0700, 108.2235], t:'다낭타워', col:'#10b981', i:'<i class="fa-solid fa-building"></i>' },
-            hanriver: { c:[16.0715, 108.2240], t:'한강 크루즈', col:'#10b981', i:'<i class="fa-solid fa-ship"></i>' },
-            marble: { c:[16.0036, 108.2640], t:'마블마운틴', col:'#f59e0b', i:'<i class="fa-solid fa-mountain"></i>' },
-            basket: { c:[15.8920, 108.3380], t:'바스켓보트', col:'#f59e0b', i:'<i class="fa-solid fa-water"></i>' },
-            hoian: { c:[15.8801, 108.3380], t:'호이안 올드타운', col:'#f59e0b', i:'<i class="fa-solid fa-torii-gate"></i>' },
-            lovebridge: { c:[16.0615, 108.2230], t:'러브브릿지', col:'#8b5cf6', i:'<i class="fa-solid fa-heart"></i>' }
+            icn: { coords:[37.4602, 126.4407], title:'인천공항 T2', color:'#64748b', icon:'✈️' },
+            dad: { coords:[16.0439, 108.1990], title:'다낭공항 T2', color:'#0ea5e9', icon:'🛬' },
+            museum: { coords:[16.0490, 108.2208], title:'다낭박물관', color:'#0ea5e9', icon:'🏛️' },
+            cathedral: { coords:[16.0678, 108.2208], title:'다낭성당', color:'#0ea5e9', icon:'⛪' },
+            mykhe: { coords:[16.0600, 108.2470], title:'미케해변', color:'#0ea5e9', icon:'🏖️' },
+            hotel: { coords:[16.0610, 108.2410], title:'무엉탄/동도 호텔', color:'#004098', icon:'🏨' },
+            banahills: { coords:[15.9977, 107.9881], title:'바나힐·황금손다리', color:'#10b981', icon:'🌉' },
+            linhung: { coords:[16.1003, 108.2775], title:'린응사(관음상)', color:'#10b981', icon:'🙏' },
+            tower: { coords:[16.0700, 108.2235], title:'다낭타워', color:'#10b981', icon:'🍽️' },
+            hanriver: { coords:[16.0715, 108.2240], title:'한강 크루즈', color:'#10b981', icon:'🚢' },
+            marble: { coords:[16.0036, 108.2640], title:'마블마운틴', color:'#f59e0b', icon:'⛰️' },
+            basket: { coords:[15.8920, 108.3380], title:'바스켓보트', color:'#f59e0b', icon:'🛶' },
+            hoian: { coords:[15.8801, 108.3380], title:'호이안 올드타운', color:'#f59e0b', icon:'🏮' },
+            lovebridge: { coords:[16.0615, 108.2230], title:'러브브릿지', color:'#8b5cf6', icon:'💜' }
         };
+        const LEG_INFO = {
+            'icn>dad': { label: 'KE457 직항', time: '약 5시간 5분\n11:10 → 14:15' },
+            'dad>icn': { label: 'KE458 직항', time: '약 4시간 20분\n15:45 → 22:05' },
+            'hotel>banahills': { time: '약 40분' },
+            'banahills>linhung': { time: '약 50분' },
+            'hotel>marble': { time: '약 20분' },
+            'marble>basket': { time: '약 35분' },
+            'hoian>hotel': { time: '약 50분' }
+        };
+        const HOME_KEYS = ['icn'];
         const mapHints = {
-            all: '✈️ 전체 보기: 대한항공 직항 노선 (KE457 · KE458)',
-            day1: '📍 1일차: 다낭 공항 → 박물관·성당·미케 → 호텔',
-            day2: '📍 2일차: 호텔 → 바나힐 → 린응사 → 다낭타워 → 한강 크루즈',
-            day3: '📍 3일차: 호텔 → 마블마운틴 → 바스켓보트 → 호이안 → 귀환',
-            day4: '📍 4일차: 러브브릿지 → 다낭 공항 → 인천 귀국'
+            all: '전체 여정 — 인천 ↔ 다낭 직항(점선) + 다낭·바나힐·호이안 전용차량 실제 도로 동선',
+            day1: '1일차 동선 — 인천공항 ✈️ 다낭공항 → 다낭박물관 → 다낭성당 → 미케해변 → 호텔',
+            day2: '2일차 동선 — 호텔 → 바나힐(황금손다리) → 린응사 → 다낭타워 → 한강 크루즈 → 호텔',
+            day3: '3일차 동선 — 호텔 → 마블마운틴 → 바스켓보트 → 호이안 올드타운·야경 → 호텔',
+            day4: '4일차 동선 — 호텔 → 러브브릿지 → 다낭공항 ✈️ 인천공항 귀국'
         };
         const routes = {
-            all: { p:['icn','dad'], zoom:['icn','dad'], maxZoom:5, segs:[
-                {from:'icn', to:'dad', mode:'flight', c:'#004098', label:'KE457 출국'},
-                {from:'dad', to:'icn', mode:'flight', c:'#64748b', label:'KE458 귀국'}
-            ]},
-            day1: { p:['dad','museum','cathedral','mykhe','hotel'], zoom:['dad','museum','cathedral','mykhe','hotel'], maxZoom:13, segs:[
-                {from:'dad', to:'museum', mode:'bus', c:'#0ea5e9'},
-                {from:'museum', to:'cathedral', mode:'bus', c:'#0ea5e9'},
-                {from:'cathedral', to:'mykhe', mode:'bus', c:'#0ea5e9'},
-                {from:'mykhe', to:'hotel', mode:'bus', c:'#0ea5e9'}
-            ]},
-            day2: { p:['hotel','banahills','linhung','tower','hanriver'], zoom:['hotel','banahills','linhung','tower','hanriver'], maxZoom:11, segs:[
-                {from:'hotel', to:'banahills', mode:'bus', c:'#10b981'},
-                {from:'banahills', to:'linhung', mode:'bus', c:'#10b981'},
-                {from:'linhung', to:'tower', mode:'bus', c:'#10b981'},
-                {from:'tower', to:'hanriver', mode:'bus', c:'#10b981'},
-                {from:'hanriver', to:'hotel', mode:'bus', c:'#10b981'}
-            ]},
-            day3: { p:['hotel','marble','basket','hoian'], zoom:['hotel','marble','basket','hoian'], maxZoom:11, segs:[
-                {from:'hotel', to:'marble', mode:'bus', c:'#f59e0b'},
-                {from:'marble', to:'basket', mode:'bus', c:'#f59e0b'},
-                {from:'basket', to:'hoian', mode:'bus', c:'#f59e0b'},
-                {from:'hoian', to:'hotel', mode:'bus', c:'#f59e0b'}
-            ]},
-            day4: { p:['hotel','lovebridge','dad','icn'], zoom:['hotel','lovebridge','dad'], maxZoom:12, segs:[
-                {from:'hotel', to:'lovebridge', mode:'bus', c:'#8b5cf6'},
-                {from:'lovebridge', to:'dad', mode:'bus', c:'#8b5cf6'},
-                {from:'dad', to:'icn', mode:'flight', c:'#004098', label:'KE458 귀국'}
-            ]}
+            all: {
+                points: ['icn','dad','museum','cathedral','mykhe','hotel','banahills','linhung','tower','hanriver','marble','basket','hoian','lovebridge'],
+                maxZoom: 10,
+                lines: [
+                    { pts: ['icn','dad'], color: '#004098', mode: 'air' },
+                    { pts: ['dad','museum','cathedral','mykhe','hotel'], color: '#0ea5e9' },
+                    { pts: ['hotel','banahills','linhung','tower','hanriver','hotel'], color: '#10b981' },
+                    { pts: ['hotel','marble','basket','hoian','hotel'], color: '#f59e0b' },
+                    { pts: ['hotel','lovebridge','dad'], color: '#8b5cf6' },
+                    { pts: ['dad','icn'], color: '#64748b', mode: 'air' }
+                ]
+            },
+            day1: {
+                points: ['icn','dad','museum','cathedral','mykhe','hotel'],
+                maxZoom: 13,
+                lines: [
+                    { pts: ['icn','dad'], color: '#004098', mode: 'air' },
+                    { pts: ['dad','museum','cathedral','mykhe','hotel'], color: '#0ea5e9' }
+                ]
+            },
+            day2: {
+                points: ['hotel','banahills','linhung','tower','hanriver'],
+                maxZoom: 11,
+                lines: [{ pts: ['hotel','banahills','linhung','tower','hanriver','hotel'], color: '#10b981' }]
+            },
+            day3: {
+                points: ['hotel','marble','basket','hoian'],
+                maxZoom: 11,
+                lines: [{ pts: ['hotel','marble','basket','hoian','hotel'], color: '#f59e0b' }]
+            },
+            day4: {
+                points: ['hotel','lovebridge','dad','icn'],
+                maxZoom: 13,
+                lines: [
+                    { pts: ['hotel','lovebridge','dad'], color: '#8b5cf6' },
+                    { pts: ['dad','icn'], color: '#004098', mode: 'air' }
+                ]
+            }
         };
 
-        function isMobileMap(){ return window.matchMedia('(max-width:768px)').matches; }
-        function segMs(mode, routeKey){
-            const m = isMobileMap();
-            const allView = routeKey === 'all';
-            if(mode === 'flight') return m ? (allView ? 3600 : 5000) : (allView ? 1800 : 2500);
-            return m ? (allView ? 2800 : 4200) : (allView ? 1400 : 2100);
+        function isMobileView(){ return window.matchMedia('(max-width:768px)').matches; }
+        function pathMeters(path) {
+            let total = 0;
+            for (let i = 1; i < path.length; i++) total += L.latLng(path[i - 1]).distanceTo(L.latLng(path[i]));
+            return total;
         }
-        function easeInOut(p){ return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
-        function bearingDeg(a, b){
-            const lat1 = (a.lat ?? a[0]) * Math.PI / 180;
-            const lat2 = (b.lat ?? b[0]) * Math.PI / 180;
-            const dLng = ((b.lng ?? b[1]) - (a.lng ?? a[1])) * Math.PI / 180;
+        function formatApproxKm(meters) {
+            if (!meters || meters <= 0) return '';
+            if (meters < 800) return '약 ' + Math.max(100, Math.round(meters / 100) * 100) + 'm';
+            const km = meters / 1000;
+            if (km < 10) return '약 ' + (Math.round(km * 2) / 2) + 'km';
+            if (km < 50) return '약 ' + Math.round(km) + 'km';
+            if (km < 400) return '약 ' + Math.round(km / 5) * 5 + 'km';
+            return '약 ' + (Math.round(km / 50) * 50).toLocaleString() + 'km';
+        }
+        function estimateSeconds(meters, mode) {
+            if (!meters || meters <= 0) return 0;
+            if (mode === 'air') return meters / (800 / 3.6);
+            return meters / (28 / 3.6);
+        }
+        function groupTravelSeconds(seconds, mode) {
+            if (!seconds || seconds <= 0) return 0;
+            if (mode === 'air') return seconds;
+            return Math.max(10 * 60, seconds * 1.3 + 8 * 60);
+        }
+        function formatApproxTime(seconds) {
+            if (!seconds || seconds <= 0) return '';
+            const min = Math.max(1, Math.ceil(seconds / 60));
+            if (min < 55) return '약 ' + Math.max(10, Math.ceil(min / 5) * 5) + '분';
+            const rounded = Math.ceil(min / 10) * 10;
+            const h = Math.floor(rounded / 60);
+            const m = rounded % 60;
+            if (!h) return '약 ' + m + '분';
+            if (!m) return '약 ' + h + '시간';
+            return '약 ' + h + '시간 ' + m + '분';
+        }
+        function setMapDistance(fromKey, toKey, meters, seconds, mode) {
+            const box = document.getElementById('map-distance');
+            const legEl = document.getElementById('map-distance-leg');
+            const timeEl = document.getElementById('map-distance-time');
+            const kmEl = document.getElementById('map-distance-km');
+            if (!box || !legEl || !timeEl || !kmEl) return;
+            const info = LEG_INFO[fromKey + '>' + toKey] || {};
+            const kmLabel = formatApproxKm(meters);
+            const timeLabel = info.time || formatApproxTime(groupTravelSeconds(seconds, mode));
+            if (!fromKey || (!kmLabel && !timeLabel)) {
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            legEl.textContent = spots[fromKey].title + ' → ' + spots[toKey].title + (info.label ? ' (' + info.label + ')' : '');
+            timeEl.textContent = timeLabel;
+            kmEl.textContent = kmLabel && mode === 'air' ? '항공 직선 ' + kmLabel : kmLabel;
+        }
+        function pinIcon(spot) {
+            return L.divIcon({
+                className: 'custom-icon',
+                html: `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${spot.color};">${spot.icon}</div><span class="map-pin-label">${spot.title}</span></div>`,
+                iconSize: [96, 52],
+                iconAnchor: [48, 16]
+            });
+        }
+        const PLANE_REST_DEG = 45;
+        const BUS_REST_DEG = 90;
+        function bearingDeg(from, to) {
+            const lat1 = from[0] * Math.PI / 180;
+            const lat2 = to[0] * Math.PI / 180;
+            const dLng = (to[1] - from[1]) * Math.PI / 180;
             const y = Math.sin(dLng) * Math.cos(lat2);
             const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
-        function headingParts(mode, bearing){
-            const nose = mode === 'flight' ? 45 : 270;
-            let rot = ((bearing - nose + 540) % 360) - 180;
-            let flip = 1;
-            if(mode !== 'flight' && Math.abs(rot) > 90){
-                flip = -1;
-                rot += rot > 0 ? -180 : 180;
-            }
-            return { rot, flip };
+        function headingPair(latlngs, i) {
+            const a = latlngs[Math.max(0, Math.min(i, latlngs.length - 1))];
+            let j = Math.min(Math.max(i + 1, 1), latlngs.length - 1);
+            while (j < latlngs.length - 1 && L.latLng(a).distanceTo(L.latLng(latlngs[j])) < 40) j++;
+            return [a, latlngs[j]];
         }
-        function travelerIcon(mode, bearing){
-            const emoji = mode === 'flight' ? '✈️' : '🚌';
-            const { rot, flip } = headingParts(mode, bearing);
+        function vehicleCssTransform(mode, from, to) {
+            if (!from || !to) return 'rotate(0deg)';
+            if (L.latLng(from).distanceTo(L.latLng(to)) < 8) return null;
+            const heading = bearingDeg(from, to);
+            const rest = mode === 'air' ? PLANE_REST_DEG : BUS_REST_DEG;
+            let rot = heading - rest;
+            while (rot > 180) rot -= 360;
+            while (rot < -180) rot += 360;
+            if (mode !== 'air' && Math.abs(rot) > 90) {
+                const flipRot = rot > 0 ? rot - 180 : rot + 180;
+                return `scaleX(-1) rotate(${flipRot}deg)`;
+            }
+            return `rotate(${rot}deg)`;
+        }
+        function vehicleIcon(mode, from, to) {
+            const emoji = mode === 'air' ? '✈️' : '🚌';
+            const transform = vehicleCssTransform(mode, from, to) || 'rotate(0deg)';
             return L.divIcon({
-                className: 'traveler-icon',
-                html: `<div class="map-vehicle traveler-rot" style="transform:rotate(${rot}deg)"><span class="traveler-flip" style="display:inline-block;transform:scaleX(${flip})">${emoji}</span></div>`,
-                iconSize: [44, 44],
-                iconAnchor: [22, 22]
+                className: 'custom-icon',
+                html: `<div class="map-bus" data-mode="${mode}" style="transform:${transform}">${emoji}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
             });
         }
-        function densifyLine(a, b, n){
-            const path = [];
-            for(let i = 0; i <= n; i++){
-                const t = i / n;
-                path.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
-            }
-            return path;
+        function applyVehicleHeading(marker, from, to, mode) {
+            if (!marker || !from || !to) return;
+            const transform = vehicleCssTransform(mode, from, to);
+            if (!transform) return;
+            const el = marker.getElement()?.querySelector('.map-bus');
+            if (el) el.style.transform = transform;
         }
-        function latLngAlong(latlngs, t){
-            if(!latlngs.length) return null;
-            const pts = latlngs.map(p => L.latLng(p));
-            if(t <= 0) return pts[0];
-            if(t >= 1) return pts[pts.length - 1];
-            let total = 0;
-            const segs = [];
-            for(let i = 0; i < pts.length - 1; i++){
-                const d = pts[i].distanceTo(pts[i + 1]);
-                segs.push({ a: pts[i], b: pts[i + 1], d });
-                total += d;
-            }
-            if(!total) return pts[0];
-            let remain = total * t;
-            for(const s of segs){
-                if(remain <= s.d || s.d === 0){
-                    const r = s.d ? remain / s.d : 0;
-                    return L.latLng(s.a.lat + (s.b.lat - s.a.lat) * r, s.a.lng + (s.b.lng - s.a.lng) * r);
-                }
-                remain -= s.d;
-            }
-            return pts[pts.length - 1];
+        function clearMapLayers() {
+            if (activeBus) activeBus._aborted = true;
+            activeBus = null;
+            mapLayers.forEach(layer => {
+                if (layer._aborted !== undefined) layer._aborted = true;
+                currentMap.removeLayer(layer);
+            });
+            mapLayers = [];
         }
-        function lookAhead(latlngs, t){
-            return { a: latLngAlong(latlngs, Math.max(0, t - 0.015)), b: latLngAlong(latlngs, Math.min(1, t + 0.03)) };
-        }
-        async function roadPath(a, b){
-            const key = a.join(',')+'|'+b.join(',');
-            if(osrmCache[key]) return osrmCache[key];
+        async function roadPath(pts) {
+            const key = pts.map(p => p.join(',')).join('|');
+            if (osrmCache[key]) return osrmCache[key];
             try {
-                const url = `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`;
-                const res = await fetch(url);
+                const coords = pts.map(p => `${p[1]},${p[0]}`).join(';');
+                const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
                 const data = await res.json();
-                if(data.code === 'Ok' && data.routes && data.routes[0]){
-                    const path = data.routes[0].geometry.coordinates.map(([lng,lat]) => [lat,lng]);
-                    osrmCache[key] = path;
-                    return path;
+                if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                    const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+                    const packed = { path, meters: data.routes[0].distance, seconds: data.routes[0].duration };
+                    osrmCache[key] = packed;
+                    return packed;
                 }
-            } catch(e) {}
-            return [a, b];
+            } catch (e) { /* straight fallback */ }
+            const meters = pathMeters(pts);
+            return { path: pts, meters, seconds: estimateSeconds(meters, 'drive') };
         }
-        function setMapLeg(fromT, toT){
-            const el = document.getElementById('map-leg');
-            if(!el) return;
-            el.style.display = 'block';
-            el.textContent = fromT + ' → ' + toT;
+        function lineDuration(pixelLength, routeKey) {
+            const mobile = isMobileView();
+            const allView = routeKey === 'all';
+            const min = mobile ? (allView ? 1600 : 2800) : (allView ? 900 : 1400);
+            const max = mobile ? (allView ? 2800 : 5600) : (allView ? 1800 : 2800);
+            const pxPerMs = mobile ? (allView ? 0.22 : 0.12) : 0.28;
+            return Math.max(min, Math.min(max, pixelLength / pxPerMs));
         }
-        function pinSpot(key){
-            const s = spots[key];
-            if(!s) return;
-            const htmlStr = `<div class="map-marker-bubble" style="background:${s.col};width:32px;height:32px;animation:popIn 0.5s forwards;color:white;font-size:14px;">${s.i}</div>`;
-            L.marker(s.c, { icon: L.divIcon({ className: '', html: htmlStr, iconSize:[32,32], iconAnchor:[16,16] }) })
-                .bindTooltip('<b>'+s.t+'</b>', { direction:'top' })
-                .addTo(layerGroup);
-        }
-        function moveVehicle(ll, mode, bearing){
-            const { rot, flip } = headingParts(mode, bearing);
-            if(!vehicleMarker){
-                vehicleMode = mode;
-                vehicleMarker = L.marker(ll, { icon: travelerIcon(mode, bearing), zIndexOffset: 1200 }).addTo(layerGroup);
-                return;
-            }
-            vehicleMarker.setLatLng(ll);
-            if(vehicleMode !== mode){
-                vehicleMode = mode;
-                vehicleMarker.setIcon(travelerIcon(mode, bearing));
-                return;
-            }
-            const el = vehicleMarker.getElement();
-            const wrap = el && el.querySelector('.traveler-rot');
-            const span = el && el.querySelector('.traveler-flip');
-            if(wrap) wrap.style.transform = `rotate(${rot}deg)`;
-            if(span) span.style.transform = `scaleX(${flip})`;
-        }
-        function animatePath(path, color, dash, mode, ms, seq){
+        function whenPathReady(polyline) {
             return new Promise(resolve => {
-                const pl = L.polyline(dash ? [path[0]] : path, { color, weight: mode==='flight'?3:4, opacity:0.9, dashArray: dash || null }).addTo(layerGroup);
+                let tries = 24;
+                const tick = () => {
+                    const el = polyline.getElement();
+                    if (el && typeof el.getTotalLength === 'function') resolve(el);
+                    else if (tries-- > 0) requestAnimationFrame(tick);
+                    else resolve(null);
+                };
+                requestAnimationFrame(tick);
+            });
+        }
+        function animateLine(polyline, duration) {
+            return new Promise(async resolve => {
+                const path = await whenPathReady(polyline);
+                if (!path) { resolve(duration); return; }
+                const length = path.getTotalLength();
+                const ms = duration || 1400;
+                path.style.transition = 'none';
+                path.style.strokeDasharray = length + ' ' + length;
+                path.style.strokeDashoffset = String(length);
+                path.getBoundingClientRect();
+                path.style.transition = `stroke-dashoffset ${ms}ms ease-in-out`;
+                path.style.strokeDashoffset = '0';
+                setTimeout(() => resolve(ms), ms + 40);
+            });
+        }
+        function moveMarkerAlong(marker, latlngs, duration, mode) {
+            return new Promise(resolve => {
+                if (!marker || !latlngs || latlngs.length < 2) { resolve(); return; }
+                const dists = [0];
+                let total = 0;
+                for (let i = 1; i < latlngs.length; i++) {
+                    total += L.latLng(latlngs[i - 1]).distanceTo(L.latLng(latlngs[i]));
+                    dists.push(total);
+                }
+                if (total === 0) { resolve(); return; }
+                const [h0a, h0b] = headingPair(latlngs, 0);
+                applyVehicleHeading(marker, h0a, h0b, mode);
                 const start = performance.now();
-                function frame(now){
-                    if(seq !== mapDrawSeq){ resolve(); return; }
-                    const p = Math.min(1, (now - start) / ms);
-                    const t = easeInOut(p);
-                    const ll = latLngAlong(path, t);
-                    const hd = lookAhead(path, t);
-                    if(ll && hd.a && hd.b) moveVehicle(ll, mode, bearingDeg(hd.a, hd.b));
-                    if(dash && ll){
-                        const n = Math.max(1, Math.floor(t * (path.length - 1)));
-                        const pts = path.slice(0, n + 1);
-                        pts.push([ll.lat, ll.lng]);
-                        pl.setLatLngs(pts);
-                    } else if(pl._path){
-                        const len = pl._path.getTotalLength();
-                        pl._path.style.strokeDasharray = String(len);
-                        pl._path.style.strokeDashoffset = String(len * (1 - t));
-                    }
-                    if(p < 1) requestAnimationFrame(frame);
-                    else { pl.setLatLngs(path); resolve(); }
+                const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                function frame(now) {
+                    if (marker._aborted) { resolve(); return; }
+                    const t = Math.min(1, (now - start) / duration);
+                    const target = total * ease(t);
+                    let i = 1;
+                    while (i < dists.length && dists[i] < target) i++;
+                    const a = latlngs[i - 1];
+                    const b = latlngs[Math.min(i, latlngs.length - 1)];
+                    const span = (dists[i] - dists[i - 1]) || 1;
+                    const f = (target - dists[i - 1]) / span;
+                    marker.setLatLng([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+                    const [ha, hb] = headingPair(latlngs, i - 1);
+                    applyVehicleHeading(marker, ha, hb, mode || marker._mode || 'drive');
+                    if (t < 1) requestAnimationFrame(frame);
+                    else resolve();
                 }
                 requestAnimationFrame(frame);
             });
         }
-
-        function initMap() {
-            if(map || typeof L === 'undefined') return;
-            map = L.map('map', { scrollWheelZoom: false });
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles © Esri'
-            }).addTo(map);
-            layerGroup = L.layerGroup().addTo(map);
-            const startKey = getTodayDayKey() || (isMobileMap() ? 'day1' : 'all');
-            changeMapAndTab(startKey);
+        function fitPath(path, maxZoom) {
+            return new Promise(resolve => {
+                if (!currentMap || !path || path.length < 2) { resolve(); return; }
+                const b = L.latLngBounds(path);
+                let done = false;
+                const finish = () => { if (done) return; done = true; currentMap.off('moveend', finish); resolve(); };
+                currentMap.once('moveend', finish);
+                currentMap.fitBounds(b.pad(0.18), { animate: true, duration: 0.7, maxZoom: maxZoom || 12, padding: [44, 44] });
+                setTimeout(finish, 850);
+            });
         }
-
-        async function changeMapAndTab(dayId) {
-            if(dayId !== 'all') {
-                document.querySelectorAll('.schedule-content').forEach(el => el.classList.add('hidden'));
-                const t = document.getElementById(dayId);
-                if(t) { t.classList.remove('hidden'); t.classList.add('animate-fade-in-up'); }
+        async function drawMap(routeKey) {
+            if (!currentMap) return;
+            const seq = ++mapDrawSeq;
+            clearMapLayers();
+            const routeData = routes[routeKey] || routes.all;
+            const hintEl = document.getElementById('map-hint');
+            if (hintEl) hintEl.textContent = mapHints[routeKey] || mapHints.all;
+            setMapDistance('', '', 0, 0);
+            const bounds = L.latLngBounds(routeData.points.map(key => spots[key].coords));
+            currentMap.fitBounds(bounds, { padding: [50, 50], maxZoom: routeData.maxZoom || 11 });
+            setTimeout(() => currentMap.invalidateSize(), 120);
+            const legs = [];
+            routeData.lines.forEach(lineDef => {
+                for (let i = 0; i < lineDef.pts.length - 1; i++) {
+                    legs.push({ from: lineDef.pts[i], to: lineDef.pts[i + 1], color: lineDef.color, mode: lineDef.mode || 'drive' });
+                }
+            });
+            const packed = await Promise.all(legs.map(async leg => {
+                if (leg.mode === 'air') {
+                    const path = [spots[leg.from].coords, spots[leg.to].coords];
+                    const meters = pathMeters(path);
+                    return { path, meters, seconds: estimateSeconds(meters, 'air') };
+                }
+                return roadPath([spots[leg.from].coords, spots[leg.to].coords]);
+            }));
+            if (seq !== mapDrawSeq) return;
+            const paths = packed.map(item => item.path);
+            await new Promise(r => setTimeout(r, 260));
+            if (seq !== mapDrawSeq) return;
+            paths.forEach((path, i) => {
+                const ghost = L.polyline(path, {
+                    color: '#94a3b8', weight: 3, opacity: 0.2,
+                    dashArray: legs[i].mode === 'air' ? '10,10' : null,
+                    lineJoin: 'round', lineCap: 'round'
+                }).addTo(currentMap);
+                mapLayers.push(ghost);
+            });
+            const placed = new Set();
+            const addPin = (key) => {
+                if (!key || placed.has(key)) return;
+                placed.add(key);
+                const spot = spots[key];
+                const marker = L.marker(spot.coords, { icon: pinIcon(spot), zIndexOffset: 200, keyboard: false })
+                    .addTo(currentMap)
+                    .bindTooltip(spot.title, { direction: 'top', offset: [0, -16] });
+                mapLayers.push(marker);
+            };
+            const legMaxZoom = (leg) => {
+                if (leg.mode === 'air') return 5;
+                if (routeKey === 'all') return 11;
+                return Math.max(routeData.maxZoom || 12, 11);
+            };
+            await fitPath(paths[0], legMaxZoom(legs[0]));
+            if (seq !== mapDrawSeq) return;
+            addPin(legs[0].from);
+            const firstLeg = legs[0];
+            const bus = L.marker(spots[firstLeg.from].coords, {
+                icon: vehicleIcon(firstLeg.mode, spots[firstLeg.from].coords, spots[firstLeg.to].coords),
+                zIndexOffset: 900, keyboard: false, interactive: false
+            }).addTo(currentMap);
+            bus._aborted = false;
+            bus._mode = firstLeg.mode;
+            activeBus = bus;
+            mapLayers.push(bus);
+            for (let i = 0; i < legs.length; i++) {
+                if (seq !== mapDrawSeq) return;
+                const leg = legs[i];
+                const path = paths[i];
+                const meters = packed[i].meters || pathMeters(path);
+                const seconds = packed[i].seconds || estimateSeconds(meters, leg.mode);
+                bus._mode = leg.mode;
+                bus.setIcon(vehicleIcon(leg.mode, spots[leg.from].coords, spots[leg.to].coords));
+                bus.setLatLng(path[0]);
+                setMapDistance(leg.from, leg.to, meters, seconds, leg.mode);
+                await fitPath(path, legMaxZoom(leg));
+                if (seq !== mapDrawSeq) return;
+                const poly = L.polyline(path, {
+                    color: leg.color, weight: leg.mode === 'air' ? 3 : 5, opacity: 0.95,
+                    dashArray: leg.mode === 'air' ? '10 8' : null,
+                    lineJoin: 'round', lineCap: 'round'
+                }).addTo(currentMap);
+                mapLayers.push(poly);
+                const ready = await whenPathReady(poly);
+                const ms = lineDuration(ready ? ready.getTotalLength() : 400, routeKey);
+                await Promise.all([animateLine(poly, ms), moveMarkerAlong(bus, path, ms, leg.mode)]);
+                if (seq !== mapDrawSeq) return;
+                if (ready) {
+                    ready.style.transition = 'none';
+                    ready.style.strokeDasharray = '';
+                    ready.style.strokeDashoffset = '';
+                }
+                addPin(leg.to);
+                await new Promise(r => setTimeout(r, isMobileView() ? 280 : 140));
             }
-            document.querySelectorAll('.map-tab-btn').forEach(btn => { btn.classList.remove('active','bg-tm','text-white','border-tm','shadow-sm'); btn.classList.add('bg-white','text-slate-600','border-slate-300'); });
-            document.querySelectorAll('.sched-tab').forEach(btn => { btn.classList.remove('text-tm','border-b-2','border-tm'); btn.classList.add('text-slate-500'); });
-            const schedDay = dayId === 'all' ? 'day1' : dayId;
-            document.querySelectorAll(`button[onclick="changeMapAndTab('${dayId}')"]`).forEach(btn => {
-                if(btn.classList.contains('map-tab-btn')) { btn.classList.add('active','bg-tm','text-white','border-tm','shadow-sm'); btn.classList.remove('bg-white','text-slate-600','border-slate-300'); }
+            if (seq !== mapDrawSeq) return;
+            if (bus && currentMap.hasLayer(bus)) currentMap.removeLayer(bus);
+            mapLayers = mapLayers.filter(layer => layer !== bus);
+            if (activeBus === bus) activeBus = null;
+            const finalKeys = routeData.points.filter(k => !HOME_KEYS.includes(k));
+            const overviewKeys = finalKeys.length ? finalKeys : routeData.points;
+            currentMap.fitBounds(L.latLngBounds(overviewKeys.map(k => spots[k].coords)), {
+                padding: [40, 40],
+                maxZoom: routeKey === 'all' ? 10 : Math.min(routeData.maxZoom || 12, 12),
+                animate: true
+            });
+            setTimeout(() => currentMap.invalidateSize(), 160);
+        }
+        function mapZoom(delta) {
+            if (!currentMap) return;
+            if (delta > 0) currentMap.zoomIn();
+            else currentMap.zoomOut();
+        }
+        window.mapZoom = mapZoom;
+        function showDayScheduleTab(dayId) {
+            const schedDay = (dayId && dayId !== 'all') ? dayId : 'day1';
+            document.querySelectorAll('.schedule-content').forEach(el => el.classList.add('hidden'));
+            const t = document.getElementById(schedDay);
+            if (t) { t.classList.remove('hidden'); t.classList.add('animate-fade-in-up'); }
+            document.querySelectorAll('.sched-tab').forEach(btn => {
+                btn.classList.remove('text-tm', 'border-b-2', 'border-tm');
+                btn.classList.add('text-slate-500');
             });
             document.querySelectorAll(`button[onclick="changeMapAndTab('${schedDay}')"]`).forEach(btn => {
-                if(btn.classList.contains('sched-tab')) { btn.classList.add('text-tm','border-b-2','border-tm'); btn.classList.remove('text-slate-500'); }
+                if (btn.classList.contains('sched-tab')) {
+                    btn.classList.add('text-tm', 'border-b-2', 'border-tm');
+                    btn.classList.remove('text-slate-500');
+                }
             });
-            if(!map || !layerGroup) return;
-            const seq = ++mapDrawSeq;
-            layerGroup.clearLayers();
-            vehicleMarker = null;
-            vehicleMode = null;
-            const route = routes[dayId] || routes.all;
-            const hintEl = document.getElementById('map-hint');
-            if (hintEl) hintEl.innerText = mapHints[dayId] || mapHints.all;
-            let bounds = L.latLngBounds();
-            (route.zoom || route.p).forEach(key => { if(spots[key]) bounds.extend(spots[key].c); });
-            map.fitBounds(bounds, { padding: [40, 40], maxZoom: route.maxZoom || 12 });
-            setTimeout(() => map.invalidateSize(), 300);
-            const first = route.p[0];
-            if(first) pinSpot(first);
-            for(const seg of route.segs){
-                if(seq !== mapDrawSeq) return;
-                const a = spots[seg.from], b = spots[seg.to];
-                if(!a || !b) continue;
-                setMapLeg(a.t, b.t);
-                const path = seg.mode === 'flight' ? densifyLine(a.c, b.c, 72) : await roadPath(a.c, b.c);
-                if(seq !== mapDrawSeq) return;
-                path.forEach(pt => bounds.extend(pt));
-                map.fitBounds(bounds, { padding: [40, 40], maxZoom: route.maxZoom || 12 });
-                await animatePath(path, seg.c, seg.mode==='flight' ? '10,8' : null, seg.mode, segMs(seg.mode, dayId), seq);
-                if(seq !== mapDrawSeq) return;
-                pinSpot(seg.to);
-            }
-            const leg = document.getElementById('map-leg');
-            if(leg && seq === mapDrawSeq) leg.style.display = 'none';
         }
+        function setMapBtnActive(dayId) {
+            document.querySelectorAll('.map-tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-tm', 'text-white', 'border-tm', 'shadow-sm');
+                btn.classList.add('bg-white', 'text-slate-600', 'border-slate-300');
+            });
+            const targetBtn = document.getElementById('btn-map-' + dayId);
+            if (targetBtn) {
+                targetBtn.classList.add('active', 'bg-tm', 'text-white', 'border-tm', 'shadow-sm');
+                targetBtn.classList.remove('bg-white', 'text-slate-600', 'border-slate-300');
+            }
+        }
+        function initMap(initialKey) {
+            if (mapInited || typeof L === 'undefined') return;
+            mapInited = true;
+            currentMap = L.map('map', { scrollWheelZoom: false, zoomControl: false });
+            if (typeof L.maplibreGL === 'function') {
+                L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron' }).addTo(currentMap);
+            } else {
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19, attribution: 'Tiles © Esri'
+                }).addTo(currentMap);
+            }
+            const startKey = initialKey || getTodayDayKey() || (isMobileView() ? 'day1' : 'all');
+            setMapBtnActive(startKey);
+            if (startKey !== 'all') showDayScheduleTab(startKey);
+            drawMap(startKey);
+        }
+        async function changeMapAndTab(dayId) {
+            showDayScheduleTab(dayId);
+            setMapBtnActive(dayId);
+            if (!currentMap) { initMap(dayId); return; }
+            drawMap(dayId);
+        }
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (currentMap) currentMap.invalidateSize(); }, 200);
+        });
         window.addEventListener('load', () => {
             initMap();
             initEventDayUI();
@@ -1493,11 +1932,11 @@
             '상비약·복용약·멀미약·지사제·방수밴드',
             '세면도구 · 개인 위생용품',
             '멀티 어댑터 (베트남 220V · A/C형)',
-            '보조배터리(기내 휴대) · 충전기 · 케이블',
+            '보조배터리 (투명 지퍼백·절연테이프 / 기내 직접 휴대)',
             '수영복·슬리퍼 (호텔 수영장·미케해변)',
             '해외 로밍/eSIM · 카카오톡 비상연락 확인',
             '여행자보험 증권(모바일) · 여정표 캡처',
-            '인천 T2 · 출발 최소 2시간 전 도착'
+            '인천 T2 · 출발 최소 2시간 30분 전 도착 (개별 수속)'
         ];
         function renderChecklist() {
             const c = document.getElementById('checklist-container'), saved = JSON.parse(localStorage.getItem(C_KEY) || '{}');
