@@ -101,6 +101,10 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .animate-fade-in-up { animation: fadeInUp .8s ease-out forwards; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes lockShake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+        .shake { animation: lockShake .45s ease-in-out; }
+        body.tm-secure-select { -webkit-user-select: none; user-select: none; }
+        body.tm-secure-select input, body.tm-secure-select textarea { -webkit-user-select: text; user-select: text; }
         section { scroll-margin-top: 70px; }
 
         .timeline-dot { position: absolute; left: -25px; top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--tw-ring-color); background-color: var(--tw-bg-color); }
@@ -117,7 +121,7 @@
             @page { size: A4 portrait; margin: 12mm 15mm; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             html, body { background: #fff !important; color: #000 !important; height: auto !important; overflow: visible !important; font-family: 'Noto Sans KR', sans-serif; }
-            header, footer, section:not(#print-area), .no-print, #toast, #custom-confirm, #phrase-modal, #event-day-bar { display: none !important; }
+            header, footer, section:not(#print-area), .no-print, #toast, #custom-confirm, #phrase-modal, #event-day-bar, #guidebook-lock-modal { display: none !important; }
             main, body { padding: 0 !important; margin: 0 !important; width: 100% !important; background: #fff !important; }
 
             #print-area { display: block !important; width: 100%; box-sizing: border-box; }
@@ -176,7 +180,32 @@
         }
     </style>
 </head>
-<body class="antialiased pb-20 md:pb-0 relative">
+<body class="antialiased pb-20 md:pb-0 relative tm-secure-select">
+
+    <!-- [Security Lock Modal] 출발 2주 전 자동 해제형 보안 잠금 (비번: 출발일 MMDD) -->
+    <div id="guidebook-lock-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-slate-900/90 backdrop-blur-md px-4 no-print" role="dialog" aria-modal="true" aria-labelledby="guidebook-lock-title">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 md:p-8 shadow-2xl text-center border border-slate-100 animate-fade-in-up">
+            <div class="w-16 h-16 bg-blue-50 text-[#004098] rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 id="guidebook-lock-title" class="text-xl font-bold text-slate-800 mb-1">보안 접속 인증</h3>
+            <p class="text-xs text-slate-500 mb-6 leading-relaxed">
+                본 가이드북은 저작권 및 일정 보호를 위해<br>
+                출발 2주 전까지 비밀번호 인증이 필요합니다.<br>
+                <span class="text-xs font-bold text-[#004098] mt-1 block">💡 힌트: 출발 날짜 4자리 (예: 11월 13일 ➔ 1113)</span>
+            </p>
+            <div class="space-y-3">
+                <input type="password" id="lock-password-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="비밀번호 4자리 입력" class="w-full text-center tracking-widest text-lg font-bold border-2 border-slate-200 focus:border-[#004098] rounded-2xl px-4 py-3 outline-none transition" aria-label="비밀번호 4자리">
+                <button type="button" onclick="verifyGuidebookPassword()" class="w-full bg-[#004098] hover:bg-[#002d6b] text-white font-bold py-3.5 rounded-2xl shadow-md transition text-sm">
+                    가이드북 입장하기
+                </button>
+            </div>
+            <p id="lock-error-msg" class="text-xs text-rose-600 font-bold mt-3 hidden">비밀번호가 일치하지 않습니다.</p>
+            <div class="mt-6 pt-4 border-t border-slate-100 text-[10px] text-slate-400">
+                [System Powered by TOURMAKER] 지적재산권 보호 구역
+            </div>
+        </div>
+    </div>
 
     <header class="bg-white/95 backdrop-blur-md shadow-md sticky top-0 z-50 no-print">
         <nav class="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -1209,6 +1238,13 @@
                     </a>
                 </div>
             </div>
+            <div class="max-w-2xl mx-auto mb-5 px-4 py-3 rounded-xl bg-slate-200/70 border border-slate-300 text-[11px] text-slate-600 leading-relaxed text-left">
+                <p class="font-bold text-slate-800 mb-0.5">
+                    <i class="fa-solid fa-shield-halved text-[#004098] mr-1"></i> 지적재산권 보호 및 외부 유출 금지 안내
+                </p>
+                본 스마트 가이드북의 기획 동선 및 시스템 구조는 <strong>(주)투어메이커의 고유 지적재산</strong>입니다.
+                발주처 검토 외 타 여행사 전달 및 무단 도용을 금하며, 보안 정책에 따라 <strong>외부 유출 시 접속 로그 및 실시간 열람 횟수(현재 <span class="tm-view-count-val font-extrabold text-red-600">...</span>회)가 자동 기록</strong>됩니다.
+            </div>
             <div class="pt-4 border-t border-slate-300/50">
                 <p class="text-[11px] font-black text-tm mb-2 tracking-wider">[System Powered by TOURMAKER]</p>
                 <p class="text-xs text-slate-500 font-medium leading-relaxed">본 스마트 가이드북은 투어메이커의 기획과 트래블 테크 기술 제휴로 제작되었습니다. · TM-261113-DANANG</p>
@@ -2098,6 +2134,112 @@
             els.forEach(el => { el.textContent = count.toLocaleString(); });
         }
         initTmViewCounter();
+
+        // ==========================================
+        // [투어메이커] 경량 복사·우클릭 차단 + 스마트 보안 잠금
+        // 잠금: 출발 2주 전(D-14)보다 이전이면 MMDD 비번 요구 / D-14부터 자동 해제
+        // ==========================================
+        (function initSecurityShield() {
+            const isEditable = (el) => {
+                if (!el) return false;
+                const tag = (el.tagName || '').toUpperCase();
+                return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+            };
+            document.addEventListener('contextmenu', (e) => {
+                if (isEditable(e.target)) return;
+                e.preventDefault();
+            });
+            document.addEventListener('selectstart', (e) => {
+                if (isEditable(e.target)) return;
+                e.preventDefault();
+            });
+            document.addEventListener('dragstart', (e) => {
+                if (isEditable(e.target)) return;
+                e.preventDefault();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (isEditable(e.target)) return;
+                const key = (e.key || '').toUpperCase();
+                const mod = e.ctrlKey || e.metaKey;
+                if (
+                    key === 'F12' ||
+                    (mod && e.shiftKey && ['I', 'J', 'C'].includes(key)) ||
+                    (mod && ['C', 'U', 'S'].includes(key))
+                ) {
+                    e.preventDefault();
+                    if (typeof showToast === 'function') {
+                        showToast('🔒 투어메이커 저작권 보호 문서로 복사 및 소스 열람이 제한됩니다.');
+                    }
+                }
+            });
+        })();
+
+        (function initSmartSecurityLock() {
+            const EVENT_START_DATE = Object.keys(EVENT_DAYS).sort()[0] || '2026-11-13';
+            const AUTO_PASS_MMDD = EVENT_START_DATE.slice(5, 7) + EVENT_START_DATE.slice(8, 10); // MMDD
+            const UNLOCK_DAYS_BEFORE = 14;
+            const STORAGE_KEY = 'tm_unlocked_' + EVENT_START_DATE;
+
+            function setLockVisible(on) {
+                const modal = document.getElementById('guidebook-lock-modal');
+                if (!modal) return;
+                modal.classList.toggle('hidden', !on);
+                modal.classList.toggle('flex', on);
+                document.documentElement.style.overflow = on ? 'hidden' : '';
+                document.body.style.overflow = on ? 'hidden' : '';
+            }
+
+            function shouldRequirePassword() {
+                const today = getGuidebookToday();
+                // 출발까지 남은 일수 > 14 이면 잠금 (D-15 이전). D-14부터 자동 해제.
+                return ymdDiffDays(EVENT_START_DATE, today) > UNLOCK_DAYS_BEFORE;
+            }
+
+            function checkLockCondition() {
+                const unlocked = localStorage.getItem(STORAGE_KEY) === 'true';
+                if (shouldRequirePassword() && !unlocked) {
+                    setLockVisible(true);
+                    const input = document.getElementById('lock-password-input');
+                    if (input) setTimeout(() => input.focus(), 80);
+                } else {
+                    setLockVisible(false);
+                }
+            }
+
+            window.verifyGuidebookPassword = function () {
+                const inputEl = document.getElementById('lock-password-input');
+                const errorMsg = document.getElementById('lock-error-msg');
+                const inputVal = (inputEl?.value || '').trim();
+                if (inputVal === AUTO_PASS_MMDD) {
+                    localStorage.setItem(STORAGE_KEY, 'true');
+                    if (errorMsg) errorMsg.classList.add('hidden');
+                    setLockVisible(false);
+                    if (typeof showToast === 'function') {
+                        showToast('🔓 인증되었습니다. 가이드북을 열람합니다.');
+                    }
+                } else {
+                    if (errorMsg) errorMsg.classList.remove('hidden');
+                    if (inputEl) {
+                        inputEl.classList.add('border-rose-500', 'shake');
+                        setTimeout(() => inputEl.classList.remove('border-rose-500', 'shake'), 500);
+                        inputEl.select();
+                    }
+                }
+            };
+
+            document.getElementById('lock-password-input')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    window.verifyGuidebookPassword();
+                }
+            });
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkLockCondition);
+            } else {
+                checkLockCondition();
+            }
+        })();
     </script>
 </body>
 </html>
